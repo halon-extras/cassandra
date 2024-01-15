@@ -1,0 +1,127 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"description": "Cassandra schema",
+	"type": "object",
+	"additionalProperties": false,
+	"properties": {
+		"profiles": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"additionalProperties": false,
+				"required": [
+					"id"
+				],
+				"properties": {
+					"id": {
+						"type": "string",
+						"minLength": 1,
+						"description": "The id"
+					},
+					"hosts": {
+						"type": "array",
+						"items": {
+							"type": "string",
+							"minLength": 1,
+							"default": "127.0.0.1",
+							"description": "The host"
+						},
+						"description": "The hosts"
+					},
+					"port": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 65535,
+						"default": 9042,
+						"description": "The port"
+					},
+					"connect_timeout": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"default": 5000,
+						"description": "The connect timeout (in milliseconds)"
+					},
+					"request_timeout": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"default": 12000,
+						"description": "The request timeout (in milliseconds)"
+					},
+					"resolve_timeout": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"default": 2000,
+						"description": "The resolve timeout (in milliseconds)"
+					},
+					"connection_idle_timeout": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"default": 60,
+						"description": "The connection idle timeout (in seconds)"
+					},
+					"connection_heartbeat_interval": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 2147483647,
+						"default": 30,
+						"description": "The connection heartbeat interval (in seconds)"
+					},
+					"tcp_keepalive": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"description": "The tcp keepalive (in seconds)"
+					},
+					"core_connections_per_host": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"default": 1,
+						"description": "The number of connections per host"
+					},
+					"num_threads_io": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": 2147483647,
+						"default": 1,
+						"description": "The number of io threads"
+					},
+					"username": {
+						"type": "string",
+						"minLength": 1,
+						"description": "The username"
+					},
+					"password": {
+						"type": "string",
+						"minLength": 1,
+						"description": "The password"
+					},
+					"tls": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable TLS"
+					},
+					"tls_verify_peer": {
+						"type": "boolean",
+						"default": false,
+						"description": "Verify peer certificate"
+					},
+					"tls_verify_host": {
+						"type": "boolean",
+						"default": false,
+						"description": "Verify certificate hostname (CN)"
+					}
+				}
+			}
+		},
+		"default_profile": {
+			"type": "string",
+			"minLength": 1,
+			"description": "The default profile"
+		}
+	}
+}

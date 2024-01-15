@@ -1,0 +1,25 @@
+version: '2'
+services:
+  halon-smtpd:
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+      args:
+        HALON_REPO_USER: ${HALON_REPO_USER}
+        HALON_REPO_PASS: ${HALON_REPO_PASS}
+    volumes:
+      - ../:/cassandra
+      - ./smtpd/dist:/etc/halon
+  cassandra-1:
+    image: cassandra:5
+    volumes:
+      - cassandra-1-data:/var/lib/cassandra
+  cassandra-2:
+    image: cassandra:5
+    environment:
+      - CASSANDRA_SEEDS=cassandra-1
+    volumes:
+      - cassandra-2-data:/var/lib/cassandra
+volumes:
+  cassandra-1-data:
+  cassandra-2-data:

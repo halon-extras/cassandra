@@ -1,0 +1,486 @@
+[
+    {
+        "name": "Cassandra",
+        "instantiable": true,
+        "parameters": {
+            "required": [],
+            "optional": [
+                {
+                    "name": "profile",
+                    "type": "string"
+                }
+            ]
+        },
+        "methods": [
+            {
+                "name": "statement",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "query",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": [
+                        {
+                            "name": "parameter_count",
+                            "type": "number"
+                        }
+                    ]
+                },
+                "returnType": "CassandraStatement",
+                "detail": "Cassandra->statement(string $query [, number $parameter_count]): CassandraStatement",
+                "value": "statement($0)",
+                "documentation": "Creates a new query statement. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "batch",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "type",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "CassandraBatch",
+                "detail": "Cassandra->batch(string $type): CassandraBatch",
+                "value": "batch($0)",
+                "documentation": "Creates a new batch statement with batch type `\"LOGGED\"`, `\"UNLOGGED\"` or `\"COUNTER\"`. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            }
+        ],
+        "detail": "Cassandra([string $profile])",
+        "value": "Cassandra($0)",
+        "documentation": "The Cassandra class is a [cpp-driver](https://github.com/datastax/cpp-driver) wrapper class. On error an exception is thrown.",
+        "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+    },
+    {
+        "name": "CassandraStatement",
+        "instantiable": false,
+        "parameters": {
+            "required": [],
+            "optional": []
+        },
+        "methods": [
+            {
+                "name": "paging_size",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "paging_size",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->paging_size(number $paging_size): this",
+                "value": "paging_size($0)",
+                "documentation": "Set the paging size. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "has_more_pages",
+                "parameters": {
+                    "required": [],
+                    "optional": []
+                },
+                "returnType": "boolean",
+                "detail": "CassandraStatement->has_more_pages(): boolean",
+                "value": "has_more_pages()",
+                "documentation": "Check if there are more pages. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "execute",
+                "parameters": {
+                    "required": [],
+                    "optional": []
+                },
+                "returnType": "array",
+                "detail": "CassandraStatement->execute(): array",
+                "value": "execute($0)",
+                "documentation": "Execute a query statement. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_bool",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "boolean"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_bool(number $index, boolean $value): this",
+                "value": "bind_bool($0)",
+                "documentation": "Binds a `boolean` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_bytes",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_bytes(number $index, string $value): this",
+                "value": "bind_bytes($0)",
+                "documentation": "Binds a `blob`, `varint` or `custom` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_double",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_double(number $index, number $value): this",
+                "value": "bind_double($0)",
+                "documentation": "Binds a `double` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_float",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_float(number $index, number $value): this",
+                "value": "bind_float($0)",
+                "documentation": "Binds a `float` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_int8",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_int8(number $index, number $value): this",
+                "value": "bind_int8($0)",
+                "documentation": "Binds a `int8` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_int16",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_int16(number $index, number $value): this",
+                "value": "bind_int16($0)",
+                "documentation": "Binds a `int16` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_int32",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_int32(number $index, number $value): this",
+                "value": "bind_int32($0)",
+                "documentation": "Binds a `int32` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_int64",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_int64(number $index, string $value): this",
+                "value": "bind_int64($0)",
+                "documentation": "Binds a `int64` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_uint32",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_uint32(number $index, number $value): this",
+                "value": "bind_uint32($0)",
+                "documentation": "Binds a `uint32` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_decimal",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "varint",
+                            "type": "string"
+                        },
+                        {
+                            "name": "scale",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_decimal(number $index, string $varint, number $scale): this",
+                "value": "bind_decimal($0)",
+                "documentation": "Binds a `decimal` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_inet",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_inet(number $index, string $value): this",
+                "value": "bind_inet($0)",
+                "documentation": "Binds a `inet` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_null",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_null(number $index): this",
+                "value": "bind_null($0)",
+                "documentation": "Binds a `null` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_string",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_string(number $index, string $value): this",
+                "value": "bind_string($0)",
+                "documentation": "Binds a `string` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_uuid",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "value",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_uuid(number $index, string $value): this",
+                "value": "bind_uuid($0)",
+                "documentation": "Binds a `uuid` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "bind_duration",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "index",
+                            "type": "number"
+                        },
+                        {
+                            "name": "months",
+                            "type": "number"
+                        },
+                        {
+                            "name": "days",
+                            "type": "number"
+                        },
+                        {
+                            "name": "nanos",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": []
+                },
+                "returnType": "this",
+                "detail": "CassandraStatement->bind_duration(number $index, number $months, number $days, string $nanos): this",
+                "value": "bind_duration($0)",
+                "documentation": "Binds a `duration` to a query at the specified index. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            }
+        ],
+        "detail": "CassandraStatement()",
+        "value": "CassandraStatement()",
+        "documentation": "A query statement. This class cannot be instantiated and can only be returned from other functions.",
+        "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+    },
+    {
+        "name": "CassandraBatch",
+        "instantiable": false,
+        "parameters": {
+            "required": [],
+            "optional": []
+        },
+        "methods": [
+            {
+                "name": "statement",
+                "parameters": {
+                    "required": [
+                        {
+                            "name": "query",
+                            "type": "string"
+                        }
+                    ],
+                    "optional": [
+                        {
+                            "name": "parameter_count",
+                            "type": "number"
+                        }
+                    ]
+                },
+                "returnType": "CassandraStatement",
+                "detail": "CassandraBatch->statement(string $query [, number $parameter_count]): CassandraStatement",
+                "value": "statement($0)",
+                "documentation": "Creates a new query statement. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            },
+            {
+                "name": "execute",
+                "parameters": {
+                    "required": [],
+                    "optional": []
+                },
+                "returnType": "none",
+                "detail": "CassandraBatch->execute(): none",
+                "value": "execute($0)",
+                "documentation": "Execute a batch statement. On error an exception is thrown.",
+                "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+            }
+        ],
+        "detail": "CassandraBatch()",
+        "value": "CassandraBatch()",
+        "documentation": "A batch statement. This class cannot be instantiated and can only be returned from other functions.",
+        "link": "[Full documentation](https://github.com/halon-extras/cassandra)"
+    }
+]

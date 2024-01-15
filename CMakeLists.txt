@@ -1,0 +1,106 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0)
+
+PROJECT("cassandra" VERSION 1.0.0)
+
+# RPM/DEB and CENTOS7/CENTOS8/ROCKY9/UBU2004/UBU2204
+IF (EXISTS "${CMAKE_CURRENT_BINARY_DIR}/OSRELEASE.txt")
+	FILE(STRINGS ${CMAKE_CURRENT_BINARY_DIR}/OSRELEASE.txt OSRELEASE)
+ELSEIF (EXISTS "/OSRELEASE.txt")
+	FILE(STRINGS /OSRELEASE.txt OSRELEASE)
+ELSE()
+	MESSAGE(FATAL_ERROR "Missing OSRELEASE")
+ENDIF()
+
+IF (OSRELEASE MATCHES "CENTOS7")
+	SET(CPACK_GENERATOR "RPM")
+ELSEIF (OSRELEASE MATCHES "CENTOS8")
+	SET(CPACK_GENERATOR "RPM")
+ELSEIF (OSRELEASE MATCHES "ROCKY9")
+	SET(CPACK_GENERATOR "RPM")
+ELSEIF (OSRELEASE MATCHES "UBU2004")
+	SET(CPACK_GENERATOR "DEB")
+ELSEIF (OSRELEASE MATCHES "UBU2204")
+	SET(CPACK_GENERATOR "DEB")
+ELSE()
+	MESSAGE(FATAL_ERROR "Invalid OSRELEASE")
+ENDIF()
+
+SET(CMAKE_BUILD_TYPE Release)
+SET(CMAKE_CXX_FLAGS_RELEASE "-std=c++17 -Wall -Wvla -Wshadow -Wconversion -Wno-sign-conversion -Wno-c++11-narrowing -O2 -fno-strict-aliasing -Wextra -Wno-unused-parameter")
+
+ADD_LIBRARY(cassandra SHARED
+	src/cassandra.cpp
+	src/configuration.cpp
+	src/argument.cpp
+	src/cassandra/cassandra.cpp
+	src/cassandra/statement/statement.cpp
+	src/cassandra/statement/bind.cpp
+	src/cassandra/statement/execute.cpp
+	src/cassandra/statement/paging.cpp
+	src/cassandra/batch/batch.cpp
+	src/cassandra/batch/execute.cpp
+)
+
+FIND_LIBRARY(CASSANDRA cassandra)
+
+TARGET_LINK_LIBRARIES(cassandra
+	${CASSANDRA}
+)
+
+SET_TARGET_PROPERTIES(cassandra PROPERTIES PREFIX "")
+
+INCLUDE_DIRECTORIES(
+	${CMAKE_CURRENT_SOURCE_DIR}/src
+	/opt/halon/include
+)
+
+IF(EXISTS "/etc/os-release")
+	EXECUTE_PROCESS(COMMAND "sed" "-ne" "s/^ID=\"\\?\\([a-z]\\+\\)\"\\?$/\\1/p" "/etc/os-release" OUTPUT_VARIABLE OS_RELEASE_ID OUTPUT_STRIP_TRAILING_WHITESPACE)
+	EXECUTE_PROCESS(COMMAND "sed" "-ne" "s/^VERSION_ID=\"\\?\\([0-9\\.]\\+\\)\"\\?$/\\1/p" "/etc/os-release" OUTPUT_VARIABLE OS_RELEASE_VERSION_ID OUTPUT_STRIP_TRAILING_WHITESPACE)
+	EXECUTE_PROCESS(COMMAND "uname" "-m" OUTPUT_VARIABLE OS_RELEASE_ARCH OUTPUT_STRIP_TRAILING_WHITESPACE)
+	SET(SYSTEM_NAME "${OS_RELEASE_ID}-${OS_RELEASE_VERSION_ID}-${OS_RELEASE_ARCH}")
+ENDIF()
+
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/cassandra.so DESTINATION plugins)
+INSTALL(FILES cassandra.classes.json DESTINATION share/plugins)
+INSTALL(FILES cassandra-app.schema.json DESTINATION share/plugins)
+
+IF(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.14.0") 
+	FILE(CREATE_LINK "/opt/halon/plugins/cassandra.so" "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link" SYMBOLIC)
+ELSE()
+	ADD_CUSTOM_TARGET(link_target ALL COMMAND ${CMAKE_COMMAND} -E create_symlink "/opt/halon/plugins/cassandra.so" "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link")
+ENDIF()
+
+INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link" DESTINATION plugins/autoload/smtpd RENAME cassandra.so)
+INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link" DESTINATION plugins/autoload/hsh RENAME cassandra.so)
+
+INSTALL(FILES "LICENSE" DESTINATION share/doc/plugins/cassandra)
+INSTALL(FILES "/cpp-driver/LICENSE" DESTINATION share/doc/plugins/cassandra RENAME LICENSE.cpp-driver)
+
+SET(CMAKE_INSTALL_PREFIX "/opt/halon")
+SET(CPACK_PACKAGING_INSTALL_PREFIX "/opt/halon")
+
+IF (CPACK_GENERATOR MATCHES "DEB")
+	SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "halon (>= 5.10), libuv1, zlib1g")
+	SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/postinst;${CMAKE_CURRENT_SOURCE_DIR}/postrm")
+	INSTALL(FILES /usr/local/lib/x86_64-linux-gnu/libcassandra.so.2.17.1 DESTINATION /usr/local/lib/x86_64-linux-gnu RENAME libcassandra.so.2)
+ENDIF()
+IF (CPACK_GENERATOR MATCHES "RPM")
+	SET(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
+	SET(CPACK_RPM_PACKAGE_REQUIRES "halon >= 5.10, libuv, zlib")
+	SET(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/postinst")
+	SET(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/postrm")
+	INSTALL(FILES /usr/local/lib64/libcassandra.so.2.17.1 DESTINATION /usr/local/lib64 RENAME libcassandra.so.2)
+ENDIF()
+
+SET(CPACK_PACKAGE_NAME "halon-extras-cassandra")
+SET(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Halon extras cassandra client")
+SET(CPACK_PACKAGE_DESCRIPTION "Halon extras cassandra client")
+SET(CPACK_PACKAGE_CONTACT "Halon support@halon.io")
+SET(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${SYSTEM_NAME}")
+
+SET(CPACK_DEBIAN_PACKAGE_SECTION "mail")
+
+INCLUDE(CPack)

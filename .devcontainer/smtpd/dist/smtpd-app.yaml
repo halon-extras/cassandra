@@ -1,0 +1,98 @@
+plugins:
+- config:
+    default_profile: cluster-1
+    profiles:
+    - connect_timeout: 5000
+      connection_heartbeat_interval: 30
+      connection_idle_timeout: 60
+      core_connections_per_host: 32
+      hosts:
+      - cassandra-1
+      - cassandra-2
+      id: cluster-1
+      num_threads_io: 1
+      port: 9042
+      request_timeout: 12000
+      resolve_timeout: 2000
+      tcp_keepalive: 60
+      tls: false
+      tls_verify_host: false
+      tls_verify_peer: false
+  id: cassandra
+resolver:
+  cache:
+    size: 10000
+scripting:
+  files:
+  - data: |
+      import { Cassandra } from "extras://cassandra";
+
+      // Create "Cassandra" instance with an (optional) config profile
+      $cassandra = Cassandra("cluster-1");
+
+      // "CREATE" query statement
+      $cassandra->statement("CREATE KEYSPACE IF NOT EXISTS foo WITH REPLICATION = {'class':'NetworkTopologyStrategy','datacenter1':2};")->execute();
+      $cassandra->statement("CREATE TABLE IF NOT EXISTS foo.bar (id UUID PRIMARY KEY);")->execute();
+
+      // "INSERT" query statement with parameter binding
+      $statement = $cassandra->statement("INSERT INTO foo.bar (id) VALUES (?);", 1);
+      $statement->bind_uuid(0, uuid());
+      $statement->execute();
+
+      // "SELECT" query statement
+      echo $cassandra->statement("SELECT * FROM foo.bar;")->execute();
+
+      // "INSERT" batch statement
+      $batch = $cassandra->batch("LOGGED");
+      $statement = $batch->statement("INSERT INTO foo.bar (id) VALUES (?);", 1);
+      $statement->bind_uuid(0, uuid());
+      $statement = $batch->statement("INSERT INTO foo.bar (id) VALUES (?);", 1);
+      $statement->bind_uuid(0, uuid());
+      $statement = $batch->statement("INSERT INTO foo.bar (id) VALUES (?);", 1);
+      $statement->bind_uuid(0, uuid());
+      $batch->execute();
+
+      // "SELECT" query statement with pagination
+      $rows = [];
+      $statement = $cassandra->statement("SELECT * FROM foo.bar");
+      $statement->paging_size(2);
+      while ($statement->has_more_pages())
+          $rows += $statement->execute();
+      echo $rows;
+    id: test.hsl
+  hooks:
+    eod:
+    - data: |
+        import { Cassandra } from "extras://cassandra";
+
+        $cassandra = Cassandra("cluster-1");
+        $statement = $cassandra->statement("SELECT * FROM system.local;");
+        echo $statement->execute();
+
+        Accept();
+      id: default
+servers:
+- id: default
+  phases:
+    eod:
+      hook: default
+  transport: mx
+transportgroups:
+- dsn:
+    transport: mx
+  id: default
+  retry:
+    count: 30
+    intervals:
+    - interval: 60
+    - interval: 900
+    - interval: 3600
+      notify: true
+    - interval: 7200
+    - interval: 10800
+  transports:
+  - id: mx
+    session:
+      tls:
+        mode: dane
+version: '5.10'

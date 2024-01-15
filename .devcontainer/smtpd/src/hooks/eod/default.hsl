@@ -1,0 +1,7 @@
+import { Cassandra } from "extras://cassandra";
+
+$cassandra = Cassandra("cluster-1");
+$statement = $cassandra->statement("SELECT * FROM system.local;");
+echo $statement->execute();
+
+Accept();
