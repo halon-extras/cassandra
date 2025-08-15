@@ -29,6 +29,7 @@ RUN yum install -y cmake3 make gcc-c++ rpm-build git openssl-devel krb5-libs lib
 RUN mkdir /tmp/halon
 RUN cd /tmp/halon \
     && curl -O -L https://github.com/datastax/cpp-driver/archive/refs/tags/2.17.1.tar.gz \
+    && echo "53b4123aad59b39f2da0eb0ce7fe0e92559f7bba0770b2e958254f17bffcd7cf 2.17.1.tar.gz" | sha256sum -c \
     && tar -zxvf 2.17.1.tar.gz && cd cpp-driver-2.17.1 \
     && mkdir -p /cpp-driver && cp LICENSE.txt /cpp-driver/LICENSE \
     && mkdir build && cd build \
