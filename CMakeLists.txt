@@ -79,6 +79,8 @@ INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link" DESTINATION plugin
 INSTALL(FILES "LICENSE" DESTINATION share/doc/plugins/cassandra)
 INSTALL(FILES "/cpp-driver/LICENSE" DESTINATION share/doc/plugins/cassandra RENAME LICENSE.cpp-driver)
 
+INSTALL(FILES "sbom.json" DESTINATION share/sbom/plugins RENAME ${PROJECT_NAME}.json)
+
 SET(CMAKE_INSTALL_PREFIX "/opt/halon")
 SET(CPACK_PACKAGING_INSTALL_PREFIX "/opt/halon")
 
