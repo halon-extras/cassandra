@@ -1,6 +1,6 @@
-version: '2'
 services:
   halon-smtpd:
+    platform: linux/amd64
     build:
       context: ./
       dockerfile: ./Dockerfile
@@ -11,10 +11,12 @@ services:
       - ../:/cassandra
       - ./smtpd/dist:/etc/halon
   cassandra-1:
+    platform: linux/amd64
     image: cassandra:5
     volumes:
       - cassandra-1-data:/var/lib/cassandra
   cassandra-2:
+    platform: linux/amd64
     image: cassandra:5
     environment:
       - CASSANDRA_SEEDS=cassandra-1

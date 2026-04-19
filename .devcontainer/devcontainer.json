@@ -1,4 +1,3 @@
-
 {
 	"name": "cassandra",
 	"dockerComposeFile": [
@@ -10,9 +9,10 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"Halon.vscode-halon",
-				"Halon.hsl-linter",
-				"Halon.hsl-debug",
+				"halon.hsl-syntax",
+				"halon.vscode-halon",
+				"halon.hsl-linter",
+				"halon.hsl-debug",
 				"ms-vscode.cpptools"
 			]
 		}
