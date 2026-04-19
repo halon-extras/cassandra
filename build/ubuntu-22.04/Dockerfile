@@ -21,8 +21,8 @@ RUN apt-get install -y build-essential cmake git file libssl-dev curl libkrb5-de
 
 RUN mkdir /tmp/halon
 RUN cd /tmp/halon \
-  && curl -O -L https://github.com/datastax/cpp-driver/archive/refs/tags/2.17.1.tar.gz \
-  && echo "53b4123aad59b39f2da0eb0ce7fe0e92559f7bba0770b2e958254f17bffcd7cf 2.17.1.tar.gz" | sha256sum -c \
+  && curl -O -L https://github.com/apache/cassandra-cpp-driver/archive/refs/tags/2.17.1.tar.gz \
+  && echo "e6ab5f5c60a916dd6c0dd9a19a883a4a1ab3d6b4e95cab925a186fecff08344e 2.17.1.tar.gz" | sha256sum -c \
   && tar -zxvf 2.17.1.tar.gz && cd cassandra-cpp-driver-2.17.1 \
   && mkdir -p /cpp-driver && cp LICENSE.txt /cpp-driver/LICENSE \
   && mkdir build && cd build \
