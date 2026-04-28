@@ -1,0 +1,37 @@
+FROM rockylinux/rockylinux:10.1
+LABEL org.opencontainers.image.authors="support@halon.io"
+
+ARG TARGETARCH
+ARG TARGETOS
+
+ARG HALON_REPO_USER
+ARG HALON_REPO_PASS
+
+RUN dnf update -y && dnf install -y epel-release
+RUN crb enable
+
+RUN echo "[halon]" >> /etc/yum.repos.d/Halon.repo
+RUN echo "name=Halon repository" >> /etc/yum.repos.d/Halon.repo
+RUN echo "baseurl=https://${HALON_REPO_USER}:${HALON_REPO_PASS}@repo.halon.io/dists/rhel10/${TARGETARCH}/stable" >> /etc/yum.repos.d/Halon.repo
+RUN echo "gpgcheck=1" >> /etc/yum.repos.d/Halon.repo
+RUN echo "gpgkey=https://raw.githubusercontent.com/halon/pgp-keys/master/pgp-keys/7F0A73B5.asc" >> /etc/yum.repos.d/Halon.repo
+RUN echo "enabled=1" >> /etc/yum.repos.d/Halon.repo
+RUN dnf install -y halon-6.11.0
+
+RUN dnf install -y cmake make gcc-c++ rpm-build git openssl-devel krb5-libs libuv-devel zlib-devel
+
+RUN mkdir /tmp/halon
+RUN cd /tmp/halon \
+  && curl -O -L https://github.com/apache/cassandra-cpp-driver/archive/refs/tags/2.17.1.tar.gz \
+  && echo "e6ab5f5c60a916dd6c0dd9a19a883a4a1ab3d6b4e95cab925a186fecff08344e 2.17.1.tar.gz" | sha256sum -c \
+  && tar -zxvf 2.17.1.tar.gz && cd cassandra-cpp-driver-2.17.1 \
+  && mkdir -p /cpp-driver && cp LICENSE.txt /cpp-driver/LICENSE \
+  && mkdir build && cd build \
+  && cmake .. \
+  && make && make install
+RUN rm -rf /tmp/halon
+
+RUN echo -n "ROCKY10" > /OSRELEASE.txt
+
+COPY build.sh /build.sh
+CMD ["/build.sh"]
