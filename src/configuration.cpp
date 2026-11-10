@@ -4,6 +4,9 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <string>
+#include <fstream>
+#include <iterator>
 #include <cassandra.h>
 
 bool parse_config(HalonConfig* cfg, ParsedConfig* parsed_cfg)
@@ -150,6 +153,28 @@ bool parse_config(HalonConfig* cfg, ParsedConfig* parsed_cfg)
 					cass_ssl_set_verify_flags(ssl, CASS_SSL_VERIFY_PEER_IDENTITY);
 				else
 					cass_ssl_set_verify_flags(ssl, CASS_SSL_VERIFY_NONE);
+
+				// The driver does not use the system CA store, so trusted certificates must be added
+				const char* tls_ca_file = HalonMTA_config_string_get(HalonMTA_config_object_get(profile, "tls_ca_file"), nullptr);
+				if (tls_ca_file)
+				{
+					std::ifstream file(tls_ca_file, std::ios::binary);
+					std::string pem((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+					if (!file.is_open() || file.bad())
+					{
+						syslog(LOG_CRIT, "cassandra: Could not read tls_ca_file %s for profile %s", tls_ca_file, id);
+						cass_ssl_free(ssl);
+						return false;
+					}
+					error = cass_ssl_add_trusted_cert_n(ssl, pem.data(), pem.size());
+					if (error != CASS_OK)
+					{
+						syslog(LOG_CRIT, "cassandra: %s in tls_ca_file %s for profile %s", cass_error_desc(error), tls_ca_file, id);
+						cass_ssl_free(ssl);
+						return false;
+					}
+				}
+
 				cass_cluster_set_ssl(cluster, ssl);
 				cass_ssl_free(ssl);
 			}

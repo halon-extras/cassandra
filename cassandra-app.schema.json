@@ -108,12 +108,17 @@
 					"tls_verify_peer": {
 						"type": "boolean",
 						"default": false,
-						"description": "Verify peer certificate"
+						"description": "Verify that the server certificate is signed by a CA in tls_ca_file"
 					},
 					"tls_verify_host": {
 						"type": "boolean",
 						"default": false,
-						"description": "Verify certificate hostname (CN)"
+						"description": "Verify that the server certificate (CN or SAN) matches the server's IP address, not its hostname. Without tls_verify_peer the certificate itself is not verified"
+					},
+					"tls_ca_file": {
+						"type": "string",
+						"minLength": 1,
+						"description": "Path to a PEM file with the CA certificate(s) used by tls_verify_peer"
 					}
 				}
 			}

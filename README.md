@@ -48,6 +48,7 @@ plugins:
           tls: false
           tls_verify_peer: false
           tls_verify_host: false
+          # tls_ca_file: /etc/ssl/cassandra-ca.pem
 ```
 
 ## Exported classes
