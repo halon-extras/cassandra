@@ -19,9 +19,15 @@ static void hsl_set_number(HalonHSLValue* hsl_value, double value)
 	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &value, 0);
 }
 
+// A length of 0 makes Halon use strlen(), so empty values must be passed as ""
+static void hsl_set_string(HalonHSLValue* hsl_value, const void* value, size_t value_length)
+{
+	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value_length ? value : "", value_length);
+}
+
 static void hsl_set_string(HalonHSLValue* hsl_value, const std::string& value)
 {
-	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value.data(), value.size());
+	hsl_set_string(hsl_value, value.data(), value.size());
 }
 
 template <typename T>
@@ -71,7 +77,7 @@ static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassVal
 			size_t value_length;
 			error = cass_value_get_string(cass_value, &value, &value_length);
 			if (error == CASS_OK)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value, value_length);
+				hsl_set_string(hsl_value, value, value_length);
 			break;
 		}
 		case CASS_VALUE_TYPE_BIGINT:
@@ -105,12 +111,14 @@ static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassVal
 			break;
 		case CASS_VALUE_TYPE_INET:
 		{
-			CassInet value;
+			CassInet value = {};
 			error = cass_value_get_inet(cass_value, &value);
 			if (error == CASS_OK)
 			{
-				char inet_string[CASS_INET_STRING_LENGTH];
-				cass_inet_string(value, inet_string);
+				// The driver accepts an empty value without setting an address
+				char inet_string[CASS_INET_STRING_LENGTH] = "";
+				if (value.address_length == CASS_INET_V4_LENGTH || value.address_length == CASS_INET_V6_LENGTH)
+					cass_inet_string(value, inet_string);
 				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, inet_string, 0);
 			}
 			break;
@@ -160,7 +168,7 @@ static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassVal
 			size_t value_size;
 			error = cass_value_get_bytes(cass_value, &value, &value_size);
 			if (error == CASS_OK)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value, value_size);
+				hsl_set_string(hsl_value, value, value_size);
 			break;
 		}
 		case CASS_VALUE_TYPE_DECIMAL:
@@ -172,7 +180,7 @@ static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassVal
 			if (error == CASS_OK)
 			{
 				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-				HalonMTA_hsl_value_set(hsl_array_add(hsl_value, 0), HALONMTA_HSL_TYPE_STRING, varint, varint_size);
+				hsl_set_string(hsl_array_add(hsl_value, 0), varint, varint_size);
 				hsl_set_number(hsl_array_add(hsl_value, 1), (double)scale);
 			}
 			break;
@@ -234,7 +242,7 @@ static CassError result_to_hsl_value(HalonHSLValue* hsl_value, const CassResult*
 			error = cass_result_column_name(result, column_index, &column_name, &column_name_length);
 			if (error != CASS_OK)
 				break;
-			HalonMTA_hsl_value_set(k, HALONMTA_HSL_TYPE_STRING, column_name, column_name_length);
+			hsl_set_string(k, column_name, column_name_length);
 			error = cass_value_to_hsl_value(v, cass_iterator_get_column(column_iterator));
 			if (error != CASS_OK)
 				break;
