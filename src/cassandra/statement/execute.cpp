@@ -3,7 +3,55 @@
 #include "cassandra/cassandra.hpp"
 #include <cassandra.h>
 
-CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cass_value)
+static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cass_value);
+
+// Add an element with a numeric key to an HSL array, and return the element value
+static HalonHSLValue* hsl_array_add(HalonHSLValue* array, double index)
+{
+	HalonHSLValue *k, *v;
+	HalonMTA_hsl_value_array_add(array, &k, &v);
+	HalonMTA_hsl_value_set(k, HALONMTA_HSL_TYPE_NUMBER, &index, 0);
+	return v;
+}
+
+static void hsl_set_number(HalonHSLValue* hsl_value, double value)
+{
+	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &value, 0);
+}
+
+static void hsl_set_string(HalonHSLValue* hsl_value, const std::string& value)
+{
+	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value.data(), value.size());
+}
+
+template <typename T>
+static CassError get_number(HalonHSLValue* hsl_value, const CassValue* cass_value, CassError (*get)(const CassValue*, T*))
+{
+	T value;
+	CassError error = get(cass_value, &value);
+	if (error == CASS_OK)
+		hsl_set_number(hsl_value, (double)value);
+	return error;
+}
+
+// Lists, sets and tuples are arrays with numeric keys
+static CassError iterator_to_hsl_value(HalonHSLValue* hsl_value, CassIterator* iterator)
+{
+	if (!iterator)
+		return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
+	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
+	CassError error = CASS_OK;
+	for (size_t index = 0; cass_iterator_next(iterator); ++index)
+	{
+		error = cass_value_to_hsl_value(hsl_array_add(hsl_value, (double)index), cass_iterator_get_value(iterator));
+		if (error != CASS_OK)
+			break;
+	}
+	cass_iterator_free(iterator);
+	return error;
+}
+
+static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cass_value)
 {
 	// Must be checked first, the collection and tuple iterators are NULL for NULL values
 	if (cass_value_is_null(cass_value))
@@ -12,259 +60,82 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 		return CASS_OK;
 	}
 
-	CassValueType cass_type = cass_data_type_type(cass_value_data_type(cass_value));
-
-	switch (cass_type)
+	CassError error = CASS_OK;
+	switch (cass_data_type_type(cass_value_data_type(cass_value)))
 	{
 		case CASS_VALUE_TYPE_ASCII:
-		{
-			const char* column_value;
-			size_t column_value_length;
-			CassError error = cass_value_get_string(cass_value, &column_value, &column_value_length);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value, column_value_length);
-			break;
-		}
 		case CASS_VALUE_TYPE_TEXT:
-		{
-			const char* column_value;
-			size_t column_value_length;
-			CassError error = cass_value_get_string(cass_value, &column_value, &column_value_length);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value, column_value_length);
-			break;
-		}
 		case CASS_VALUE_TYPE_VARCHAR:
 		{
-			const char* column_value;
-			size_t column_value_length;
-			CassError error = cass_value_get_string(cass_value, &column_value, &column_value_length);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value, column_value_length);
+			const char* value;
+			size_t value_length;
+			error = cass_value_get_string(cass_value, &value, &value_length);
+			if (error == CASS_OK)
+				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value, value_length);
 			break;
 		}
 		case CASS_VALUE_TYPE_BIGINT:
-		{
-			cass_int64_t column_value;
-			CassError error = cass_value_get_int64(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				std::string column_value_hsl = std::to_string(column_value);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value_hsl.c_str(), 0);
-			}
-			break;
-		}
 		case CASS_VALUE_TYPE_COUNTER:
+		case CASS_VALUE_TYPE_TIMESTAMP:
+		case CASS_VALUE_TYPE_TIME:
 		{
-			cass_int64_t column_value;
-			CassError error = cass_value_get_int64(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				std::string column_value_hsl = std::to_string(column_value);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value_hsl.c_str(), 0);
-			}
+			cass_int64_t value;
+			error = cass_value_get_int64(cass_value, &value);
+			if (error == CASS_OK)
+				hsl_set_string(hsl_value, std::to_string(value));
 			break;
 		}
 		case CASS_VALUE_TYPE_INT:
-		{
-			cass_int32_t column_value;
-			CassError error = cass_value_get_int32(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				double column_value_hsl = (double)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &column_value_hsl, 0);
-			}
+			error = get_number(hsl_value, cass_value, cass_value_get_int32);
 			break;
-		}
 		case CASS_VALUE_TYPE_SMALL_INT:
-		{
-			cass_int16_t column_value;
-			CassError error = cass_value_get_int16(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				double column_value_hsl = (double)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &column_value_hsl, 0);
-			}
+			error = get_number(hsl_value, cass_value, cass_value_get_int16);
 			break;
-		}
 		case CASS_VALUE_TYPE_TINY_INT:
-		{
-			cass_int8_t column_value;
-			CassError error = cass_value_get_int8(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				double column_value_hsl = (double)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &column_value_hsl, 0);
-			}
+			error = get_number(hsl_value, cass_value, cass_value_get_int8);
 			break;
-		}
 		case CASS_VALUE_TYPE_FLOAT:
-		{
-			cass_float_t column_value;
-			CassError error = cass_value_get_float(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				double column_value_hsl = (double)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &column_value_hsl, 0);
-			}
+			error = get_number(hsl_value, cass_value, cass_value_get_float);
 			break;
-		}
 		case CASS_VALUE_TYPE_DOUBLE:
-		{
-			cass_double_t column_value;
-			CassError error = cass_value_get_double(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				double column_value_hsl = (double)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &column_value_hsl, 0);
-			}
+			error = get_number(hsl_value, cass_value, cass_value_get_double);
 			break;
-		}
+		case CASS_VALUE_TYPE_DATE:
+			error = get_number(hsl_value, cass_value, cass_value_get_uint32);
+			break;
 		case CASS_VALUE_TYPE_INET:
 		{
-			CassInet column_value;
-			CassError error = cass_value_get_inet(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
+			CassInet value;
+			error = cass_value_get_inet(cass_value, &value);
+			if (error == CASS_OK)
 			{
-				char column_value_hsl[CASS_INET_STRING_LENGTH];
-				cass_inet_string(column_value, column_value_hsl);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, &column_value_hsl, 0);
+				char inet_string[CASS_INET_STRING_LENGTH];
+				cass_inet_string(value, inet_string);
+				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, inet_string, 0);
 			}
 			break;
 		}
 		case CASS_VALUE_TYPE_UUID:
-		{
-			CassUuid column_value;
-			CassError error = cass_value_get_uuid(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				char column_value_hsl[CASS_UUID_STRING_LENGTH];
-				cass_uuid_string(column_value, column_value_hsl);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, &column_value_hsl, 0);
-			}
-			break;
-		}
 		case CASS_VALUE_TYPE_TIMEUUID:
 		{
-			CassUuid column_value;
-			CassError error = cass_value_get_uuid(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
+			CassUuid value;
+			error = cass_value_get_uuid(cass_value, &value);
+			if (error == CASS_OK)
 			{
-				char column_value_hsl[CASS_UUID_STRING_LENGTH];
-				cass_uuid_string(column_value, column_value_hsl);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, &column_value_hsl, 0);
+				char uuid_string[CASS_UUID_STRING_LENGTH];
+				cass_uuid_string(value, uuid_string);
+				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, uuid_string, 0);
 			}
 			break;
 		}
 		case CASS_VALUE_TYPE_BOOLEAN:
 		{
-			cass_bool_t column_value;
-			CassError error = cass_value_get_bool(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
+			cass_bool_t value;
+			error = cass_value_get_bool(cass_value, &value);
+			if (error == CASS_OK)
 			{
-				bool column_value_hsl = (bool)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_BOOLEAN, &column_value_hsl, 0);
-			}
-			break;
-		}
-		case CASS_VALUE_TYPE_TIMESTAMP:
-		{
-			cass_int64_t column_value;
-			CassError error = cass_value_get_int64(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				std::string column_value_hsl = std::to_string(column_value);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value_hsl.c_str(), 0);
-			}
-			break;
-		}
-		case CASS_VALUE_TYPE_DATE:
-		{
-			cass_uint32_t column_value;
-			CassError error = cass_value_get_uint32(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				double column_value_hsl = (double)column_value;
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NUMBER, &column_value_hsl, 0);
-			}
-			break;
-		}
-		case CASS_VALUE_TYPE_TIME:
-		{
-			cass_int64_t column_value;
-			CassError error = cass_value_get_int64(cass_value, &column_value);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-			{
-				std::string column_value_hsl = std::to_string(column_value);
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value_hsl.c_str(), 0);
+				bool value_hsl = (bool)value;
+				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_BOOLEAN, &value_hsl, 0);
 			}
 			break;
 		}
@@ -272,59 +143,24 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 		{
 			cass_int32_t months, days;
 			cass_int64_t nanos;
-			CassError error = cass_value_get_duration(cass_value, &months, &days, &nanos);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
+			error = cass_value_get_duration(cass_value, &months, &days, &nanos);
+			if (error == CASS_OK)
 			{
 				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-				HalonHSLValue *k1, *v1;
-				HalonMTA_hsl_value_array_add(hsl_value, &k1, &v1);
-				double months_index = 0;
-				HalonMTA_hsl_value_set(k1, HALONMTA_HSL_TYPE_NUMBER, &months_index, 0);
-				double months_hsl = (double)months;
-				HalonMTA_hsl_value_set(v1, HALONMTA_HSL_TYPE_NUMBER, &months_hsl, 0);
-				HalonHSLValue *k2, *v2;
-				HalonMTA_hsl_value_array_add(hsl_value, &k2, &v2);
-				double days_index = 1;
-				HalonMTA_hsl_value_set(k2, HALONMTA_HSL_TYPE_NUMBER, &days_index, 0);
-				double days_hsl = (double)days;
-				HalonMTA_hsl_value_set(v2, HALONMTA_HSL_TYPE_NUMBER, &days_hsl, 0);
-				HalonHSLValue *k3, *v3;
-				HalonMTA_hsl_value_array_add(hsl_value, &k3, &v3);
-				double nanos_index = 2;
-				HalonMTA_hsl_value_set(k3, HALONMTA_HSL_TYPE_NUMBER, &nanos_index, 0);
-				std::string nanos_hsl = std::to_string((long long int)nanos);
-				HalonMTA_hsl_value_set(v3, HALONMTA_HSL_TYPE_STRING, nanos_hsl.c_str(), 0);
+				hsl_set_number(hsl_array_add(hsl_value, 0), (double)months);
+				hsl_set_number(hsl_array_add(hsl_value, 1), (double)days);
+				hsl_set_string(hsl_array_add(hsl_value, 2), std::to_string((long long int)nanos));
 			}
 			break;
 		}
 		case CASS_VALUE_TYPE_BLOB:
-		{
-			const cass_byte_t* column_value;
-			size_t column_value_length;
-			CassError error = cass_value_get_bytes(cass_value, &column_value, &column_value_length);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value, column_value_length);
-			break;
-		}
 		case CASS_VALUE_TYPE_VARINT:
 		{
-			const cass_byte_t* column_value;
-			size_t column_value_length;
-			CassError error = cass_value_get_bytes(cass_value, &column_value, &column_value_length);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, column_value, column_value_length);
+			const cass_byte_t* value;
+			size_t value_size;
+			error = cass_value_get_bytes(cass_value, &value, &value_size);
+			if (error == CASS_OK)
+				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_STRING, value, value_size);
 			break;
 		}
 		case CASS_VALUE_TYPE_DECIMAL:
@@ -332,237 +168,109 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 			const cass_byte_t* varint;
 			size_t varint_size;
 			cass_int32_t scale;
-			CassError error = cass_value_get_decimal(cass_value, &varint, &varint_size, &scale);
-			if (error == CASS_ERROR_LIB_NULL_VALUE)
-				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
-			else if (error != CASS_OK)
-				return error;
-			else
+			error = cass_value_get_decimal(cass_value, &varint, &varint_size, &scale);
+			if (error == CASS_OK)
 			{
 				HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-				HalonHSLValue *k1, *v1;
-				HalonMTA_hsl_value_array_add(hsl_value, &k1, &v1);
-				double varint_index = 0;
-				HalonMTA_hsl_value_set(k1, HALONMTA_HSL_TYPE_NUMBER, &varint_index, 0);
-				HalonMTA_hsl_value_set(v1, HALONMTA_HSL_TYPE_STRING, varint, varint_size);
-				HalonHSLValue *k2, *v2;
-				HalonMTA_hsl_value_array_add(hsl_value, &k2, &v2);
-				double scale_index = 1;
-				double scale_hsl = (double)scale;
-				HalonMTA_hsl_value_set(k2, HALONMTA_HSL_TYPE_NUMBER, &scale_index, 0);
-				HalonMTA_hsl_value_set(v2, HALONMTA_HSL_TYPE_NUMBER, &scale_hsl, 0);
+				HalonMTA_hsl_value_set(hsl_array_add(hsl_value, 0), HALONMTA_HSL_TYPE_STRING, varint, varint_size);
+				hsl_set_number(hsl_array_add(hsl_value, 1), (double)scale);
 			}
 			break;
 		}
 		case CASS_VALUE_TYPE_MAP:
 		{
-			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-			CassIterator* map_iterator = cass_iterator_from_map(cass_value);
-			if (!map_iterator)
+			CassIterator* iterator = cass_iterator_from_map(cass_value);
+			if (!iterator)
 				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
-			while (cass_iterator_next(map_iterator))
+			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
+			while (cass_iterator_next(iterator))
 			{
 				HalonHSLValue *k, *v;
 				HalonMTA_hsl_value_array_add(hsl_value, &k, &v);
-				const CassValue* key = cass_iterator_get_map_key(map_iterator);
-				const CassValue* value = cass_iterator_get_map_value(map_iterator);
-				CassError error;
-				error = cass_value_to_hsl_value(k, key);
+				error = cass_value_to_hsl_value(k, cass_iterator_get_map_key(iterator));
+				if (error == CASS_OK)
+					error = cass_value_to_hsl_value(v, cass_iterator_get_map_value(iterator));
 				if (error != CASS_OK)
-				{
-					cass_iterator_free(map_iterator);
-					return error;
-				}
-				error = cass_value_to_hsl_value(v, value);
-				if (error != CASS_OK)
-				{
-					cass_iterator_free(map_iterator);
-					return error;
-				}
+					break;
 			}
-			cass_iterator_free(map_iterator);
+			cass_iterator_free(iterator);
 			break;
 		}
 		case CASS_VALUE_TYPE_LIST:
-		{
-			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-			CassIterator* list_iterator = cass_iterator_from_collection(cass_value);
-			if (!list_iterator)
-				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
-			size_t list_index = 0;
-			while (cass_iterator_next(list_iterator))
-			{
-				double di = (double)list_index;
-				HalonHSLValue *k, *v;
-				HalonMTA_hsl_value_array_add(hsl_value, &k, &v);
-				HalonMTA_hsl_value_set(k, HALONMTA_HSL_TYPE_NUMBER, &di, 0);
-				const CassValue* value = cass_iterator_get_value(list_iterator);
-				CassError error = cass_value_to_hsl_value(v, value);
-				if (error != CASS_OK)
-				{
-					cass_iterator_free(list_iterator);
-					return error;
-				}
-				list_index++;
-			}
-			cass_iterator_free(list_iterator);
-			break;
-		}
 		case CASS_VALUE_TYPE_SET:
-		{
-			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-			CassIterator* list_iterator = cass_iterator_from_collection(cass_value);
-			if (!list_iterator)
-				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
-			size_t list_index = 0;
-			while (cass_iterator_next(list_iterator))
-			{
-				double di = (double)list_index;
-				HalonHSLValue *k, *v;
-				HalonMTA_hsl_value_array_add(hsl_value, &k, &v);
-				HalonMTA_hsl_value_set(k, HALONMTA_HSL_TYPE_NUMBER, &di, 0);
-				const CassValue* value = cass_iterator_get_value(list_iterator);
-				CassError error = cass_value_to_hsl_value(v, value);
-				if (error != CASS_OK)
-				{
-					cass_iterator_free(list_iterator);
-					return error;
-				}
-				list_index++;
-			}
-			cass_iterator_free(list_iterator);
+			error = iterator_to_hsl_value(hsl_value, cass_iterator_from_collection(cass_value));
 			break;
-		}
 		case CASS_VALUE_TYPE_TUPLE:
-		{
-			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-			CassIterator* tuple_iterator = cass_iterator_from_tuple(cass_value);
-			if (!tuple_iterator)
-				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
-			size_t tuple_index = 0;
-			while (cass_iterator_next(tuple_iterator))
-			{
-				double di = (double)tuple_index;
-				HalonHSLValue *k, *v;
-				HalonMTA_hsl_value_array_add(hsl_value, &k, &v);
-				HalonMTA_hsl_value_set(k, HALONMTA_HSL_TYPE_NUMBER, &di, 0);
-				const CassValue* value = cass_iterator_get_value(tuple_iterator);
-				CassError error = cass_value_to_hsl_value(v, value);
-				if (error != CASS_OK)
-				{
-					cass_iterator_free(tuple_iterator);
-					return error;
-				}
-				tuple_index++;
-			}
-			cass_iterator_free(tuple_iterator);
+			error = iterator_to_hsl_value(hsl_value, cass_iterator_from_tuple(cass_value));
 			break;
-		}
 		case CASS_VALUE_TYPE_CUSTOM:
 		case CASS_VALUE_TYPE_UDT:
 		case CASS_VALUE_TYPE_LAST_ENTRY:
 		case CASS_VALUE_TYPE_UNKNOWN:
-		{
 			// Not supported
 			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
 			break;
-		}
 	}
+	return error;
+}
 
-	return CASS_OK;
+// Rows are arrays with numeric keys, columns are arrays with the column names as keys
+static CassError result_to_hsl_value(HalonHSLValue* hsl_value, const CassResult* result)
+{
+	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
+	CassError error = CASS_OK;
+	CassIterator* row_iterator = cass_iterator_from_result(result);
+	for (size_t row_index = 0; cass_iterator_next(row_iterator); ++row_index)
+	{
+		HalonHSLValue* row = hsl_array_add(hsl_value, (double)row_index);
+		HalonMTA_hsl_value_set(row, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
+		CassIterator* column_iterator = cass_iterator_from_row(cass_iterator_get_row(row_iterator));
+		for (size_t column_index = 0; cass_iterator_next(column_iterator); ++column_index)
+		{
+			HalonHSLValue *k, *v;
+			HalonMTA_hsl_value_array_add(row, &k, &v);
+			const char* column_name;
+			size_t column_name_length;
+			error = cass_result_column_name(result, column_index, &column_name, &column_name_length);
+			if (error != CASS_OK)
+				break;
+			HalonMTA_hsl_value_set(k, HALONMTA_HSL_TYPE_STRING, column_name, column_name_length);
+			error = cass_value_to_hsl_value(v, cass_iterator_get_column(column_iterator));
+			if (error != CASS_OK)
+				break;
+		}
+		cass_iterator_free(column_iterator);
+		if (error != CASS_OK)
+			break;
+	}
+	cass_iterator_free(row_iterator);
+	return error;
 }
 
 void Cassandra_statement_execute(HalonHSLContext* hhc, HalonHSLArguments* args, HalonHSLValue* ret)
 {
 	Cassandra* ptr = (Cassandra*)HalonMTA_hsl_object_ptr_get(hhc);
 	CassFuture* result_future = cass_session_execute(ptr->profile->session, ptr->statement);
-
-	if (cass_future_error_code(result_future) == CASS_OK)
+	if (cass_future_error_code(result_future) != CASS_OK)
 	{
-		HalonMTA_hsl_value_set(ret, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-
-		const CassResult* result = cass_future_get_result(result_future);
-		CassIterator* row_iterator = cass_iterator_from_result(result);
-		size_t row_index = 0;
-		while (cass_iterator_next(row_iterator))
-		{
-			double di = (double)row_index;
-			HalonHSLValue *k1, *v1;
-			HalonMTA_hsl_value_array_add(ret, &k1, &v1);
-			HalonMTA_hsl_value_set(k1, HALONMTA_HSL_TYPE_NUMBER, &di, 0);
-			HalonMTA_hsl_value_set(v1, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
-			const CassRow* row = cass_iterator_get_row(row_iterator);
-			CassIterator* column_iterator = cass_iterator_from_row(row);
-			size_t column_index = 0;
-			while (cass_iterator_next(column_iterator))
-			{
-				CassError error;
-
-				HalonHSLValue *k2, *v2;
-				HalonMTA_hsl_value_array_add(v1, &k2, &v2);
-
-				const char* column_name;
-				size_t column_name_length;
-				error = cass_result_column_name(result, column_index, &column_name, &column_name_length);
-				if (error != CASS_OK)
-				{
-					HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-					HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, cass_error_desc(error), 0);
-					cass_iterator_free(column_iterator);
-					cass_iterator_free(row_iterator);
-					cass_result_free(result);
-					cass_future_free(result_future);
-					return;
-				}
-
-				HalonMTA_hsl_value_set(k2, HALONMTA_HSL_TYPE_STRING, column_name, column_name_length);
-
-				const CassValue* value = cass_iterator_get_column(column_iterator);
-				error = cass_value_to_hsl_value(v2, value);
-				if (error != CASS_OK)
-				{
-					HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-					HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, cass_error_desc(error), 0);
-					cass_iterator_free(column_iterator);
-					cass_iterator_free(row_iterator);
-					cass_result_free(result);
-					cass_future_free(result_future);
-					return;
-				}
-				column_index++;
-			}
-			cass_iterator_free(column_iterator);
-			row_index++;
-		}
-		cass_iterator_free(row_iterator);
-
-		cass_bool_t has_more_pages = cass_result_has_more_pages(result);
-		if (has_more_pages)
-		{
-			CassError error = cass_statement_set_paging_state(ptr->statement, result);
-			if (error != CASS_OK)
-			{
-				HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-				HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, cass_error_desc(error), 0);
-				cass_result_free(result);
-				cass_future_free(result_future);
-				return;
-			}
-		}
-		ptr->has_more_pages = (bool)has_more_pages;
-
-		cass_result_free(result);
-	}
-	else
-	{
-		const char* message;
-		size_t message_length;
-		cass_future_error_message(result_future, &message, &message_length);
-		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-		HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, message, message_length);
+		throw_cass_future_error(hhc, result_future);
 		cass_future_free(result_future);
 		return;
 	}
 
+	const CassResult* result = cass_future_get_result(result_future);
+	CassError error = result_to_hsl_value(ret, result);
+	if (error == CASS_OK)
+	{
+		cass_bool_t has_more_pages = cass_result_has_more_pages(result);
+		if (has_more_pages)
+			error = cass_statement_set_paging_state(ptr->statement, result);
+		if (error == CASS_OK)
+			ptr->has_more_pages = (bool)has_more_pages;
+	}
+	if (error != CASS_OK)
+		throw_cass_error(hhc, error);
+
+	cass_result_free(result);
 	cass_future_free(result_future);
 }

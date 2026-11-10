@@ -13,8 +13,7 @@ void Cassandra_statement_paging_size(HalonHSLContext* hhc, HalonHSLArguments* ar
 	CassError error = cass_statement_set_paging_size(ptr->statement, (int)paging_size);
 	if (error != CASS_OK)
 	{
-		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-		HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, cass_error_desc(error), 0);
+		throw_cass_error(hhc, error);
 		return;
 	}
 	HalonMTA_hsl_value_set(ret, HALONMTA_HSL_TYPE_THIS, hhc, 0);

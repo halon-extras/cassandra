@@ -4,6 +4,8 @@
 #include <string>
 #include <HalonMTA.h>
 
+void throw_hsl_exception(HalonHSLContext* hhc, const char* message, size_t message_length = 0);
+
 bool parse_hsl_argument_as_bool(HalonHSLContext* hhc, HalonHSLArguments* args, size_t index, bool required, bool& value);
 bool parse_hsl_argument_as_double(HalonHSLContext* hhc, HalonHSLArguments* args, size_t index, bool required, double& value);
 bool parse_hsl_argument_as_string(HalonHSLContext* hhc, HalonHSLArguments* args, size_t index, bool required, std::string& value);

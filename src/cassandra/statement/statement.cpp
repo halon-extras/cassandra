@@ -17,12 +17,20 @@ void Cassandra_statement(HalonHSLContext* hhc, HalonHSLArguments* args, HalonHSL
 	CassStatement* statement = cass_statement_new_n(query.data(), query.size(), (size_t)parameter_count);
 
 	Cassandra* ptr1 = (Cassandra*)HalonMTA_hsl_object_ptr_get(hhc);
+	if (ptr1->batch)
+	{
+		CassError error = cass_batch_add_statement(ptr1->batch, statement);
+		if (error != CASS_OK)
+		{
+			cass_statement_free(statement);
+			throw_cass_error(hhc, error);
+			return;
+		}
+	}
+
 	Cassandra* ptr2 = new Cassandra();
 	ptr2->profile = ptr1->profile;
 	ptr2->statement = statement;
-
-	if (ptr1->batch)
-		cass_batch_add_statement(ptr1->batch, statement);
 
 	HalonHSLObject* object = HalonMTA_hsl_object_new();
 	HalonMTA_hsl_object_type_set(object, "CassandraStatement");

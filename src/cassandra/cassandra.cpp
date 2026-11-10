@@ -27,8 +27,7 @@ void Cassandra_constructor(HalonHSLContext* hhc, HalonHSLArguments* args, HalonH
 	if (profile_iterator == parsed_cfg.profiles.end())
 	{
 		mutex_cfg.unlock();
-		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-		HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, "invalid profile", 0);
+		throw_hsl_exception(hhc, "invalid profile");
 		return;
 	}
 
@@ -48,11 +47,7 @@ void Cassandra_constructor(HalonHSLContext* hhc, HalonHSLArguments* args, HalonH
 		}
 		else
 		{
-			const char* message;
-			size_t message_length;
-			cass_future_error_message(connect_future, &message, &message_length);
-			HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-			HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, message, message_length);
+			throw_cass_future_error(hhc, connect_future);
 			cass_future_free(connect_future);
 			cass_session_free(session);
 			return;
@@ -75,6 +70,19 @@ void Cassandra_free(void* ptr)
 {
 	Cassandra* x = (Cassandra*)ptr;
 	delete x;
+}
+
+void throw_cass_error(HalonHSLContext* hhc, CassError error)
+{
+	throw_hsl_exception(hhc, cass_error_desc(error));
+}
+
+void throw_cass_future_error(HalonHSLContext* hhc, CassFuture* future)
+{
+	const char* message;
+	size_t message_length;
+	cass_future_error_message(future, &message, &message_length);
+	throw_hsl_exception(hhc, message, message_length);
 }
 
 CassandraProfile::~CassandraProfile()

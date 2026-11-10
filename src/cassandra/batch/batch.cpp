@@ -19,8 +19,7 @@ void Cassandra_batch(HalonHSLContext* hhc, HalonHSLArguments* args, HalonHSLValu
 		type = CASS_BATCH_TYPE_COUNTER;
 	else
 	{
-		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
-		HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, "invalid argument", 0);
+		throw_hsl_exception(hhc, "invalid argument");
 		return;
 	}
 
