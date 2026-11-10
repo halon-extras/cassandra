@@ -5,6 +5,13 @@
 
 CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cass_value)
 {
+	// Must be checked first, the collection and tuple iterators are NULL for NULL values
+	if (cass_value_is_null(cass_value))
+	{
+		HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_NONE, nullptr, 0);
+		return CASS_OK;
+	}
+
 	CassValueType cass_type = cass_data_type_type(cass_value_data_type(cass_value));
 
 	switch (cass_type)
@@ -351,6 +358,8 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 		{
 			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
 			CassIterator* map_iterator = cass_iterator_from_map(cass_value);
+			if (!map_iterator)
+				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
 			while (cass_iterator_next(map_iterator))
 			{
 				HalonHSLValue *k, *v;
@@ -378,6 +387,8 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 		{
 			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
 			CassIterator* list_iterator = cass_iterator_from_collection(cass_value);
+			if (!list_iterator)
+				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
 			size_t list_index = 0;
 			while (cass_iterator_next(list_iterator))
 			{
@@ -401,6 +412,8 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 		{
 			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
 			CassIterator* list_iterator = cass_iterator_from_collection(cass_value);
+			if (!list_iterator)
+				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
 			size_t list_index = 0;
 			while (cass_iterator_next(list_iterator))
 			{
@@ -424,6 +437,8 @@ CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassValue* cas
 		{
 			HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
 			CassIterator* tuple_iterator = cass_iterator_from_tuple(cass_value);
+			if (!tuple_iterator)
+				return CASS_ERROR_LIB_INVALID_VALUE_TYPE;
 			size_t tuple_index = 0;
 			while (cass_iterator_next(tuple_iterator))
 			{
