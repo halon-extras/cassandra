@@ -81,7 +81,7 @@ Check if there are more pages. On error an exception is thrown.
 
 #### execute(): array
 
-Execute a query statement. On error an exception is thrown. See the table below for the data types mapping.
+Execute a query statement. On error an exception is thrown. Each row is an array keyed by column name; if a name occurs more than once (e.g. `SELECT a, a`), the later columns get the suffix `_2`, `_3` and so on. See the table below for the data types mapping.
 
 | Cassandra   | HSL       | Comment                                                                                       |
 |-------------|-----------|-----------------------------------------------------------------------------------------------|

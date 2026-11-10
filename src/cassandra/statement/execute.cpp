@@ -1,5 +1,7 @@
 #include "execute.hpp"
 #include <string>
+#include <vector>
+#include <set>
 #include "cassandra/cassandra.hpp"
 #include <cassandra.h>
 
@@ -222,11 +224,42 @@ static CassError cass_value_to_hsl_value(HalonHSLValue* hsl_value, const CassVal
 	return error;
 }
 
+// Column names are used as array keys, so a name that occurs more than once (e.g. SELECT a, a)
+// gets a suffix on its later occurrences (a, a_2, a_3), skipping names already in the result
+static std::vector<std::string> unique_column_names(const std::vector<std::string>& names)
+{
+	std::set<std::string> original(names.begin(), names.end());
+	std::set<std::string> used;
+	std::vector<std::string> unique;
+	for (const std::string& name : names)
+	{
+		std::string candidate = name;
+		for (size_t n = 2; used.count(candidate) || (candidate != name && original.count(candidate)); ++n)
+			candidate = name + "_" + std::to_string(n);
+		used.insert(candidate);
+		unique.push_back(candidate);
+	}
+	return unique;
+}
+
 // Rows are arrays with numeric keys, columns are arrays with the column names as keys
 static CassError result_to_hsl_value(HalonHSLValue* hsl_value, const CassResult* result)
 {
 	HalonMTA_hsl_value_set(hsl_value, HALONMTA_HSL_TYPE_ARRAY, nullptr, 0);
 	CassError error = CASS_OK;
+
+	std::vector<std::string> column_names;
+	for (size_t column_index = 0; column_index < cass_result_column_count(result); ++column_index)
+	{
+		const char* column_name;
+		size_t column_name_length;
+		error = cass_result_column_name(result, column_index, &column_name, &column_name_length);
+		if (error != CASS_OK)
+			return error;
+		column_names.emplace_back(column_name, column_name_length);
+	}
+	column_names = unique_column_names(column_names);
+
 	CassIterator* row_iterator = cass_iterator_from_result(result);
 	for (size_t row_index = 0; cass_iterator_next(row_iterator); ++row_index)
 	{
@@ -235,14 +268,14 @@ static CassError result_to_hsl_value(HalonHSLValue* hsl_value, const CassResult*
 		CassIterator* column_iterator = cass_iterator_from_row(cass_iterator_get_row(row_iterator));
 		for (size_t column_index = 0; cass_iterator_next(column_iterator); ++column_index)
 		{
+			if (column_index >= column_names.size())
+			{
+				error = CASS_ERROR_LIB_INDEX_OUT_OF_BOUNDS;
+				break;
+			}
 			HalonHSLValue *k, *v;
 			HalonMTA_hsl_value_array_add(row, &k, &v);
-			const char* column_name;
-			size_t column_name_length;
-			error = cass_result_column_name(result, column_index, &column_name, &column_name_length);
-			if (error != CASS_OK)
-				break;
-			hsl_set_string(k, column_name, column_name_length);
+			hsl_set_string(k, column_names[column_index]);
 			error = cass_value_to_hsl_value(v, cass_iterator_get_column(column_iterator));
 			if (error != CASS_OK)
 				break;
