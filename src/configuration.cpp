@@ -33,6 +33,11 @@ bool parse_config(HalonConfig* cfg, ParsedConfig* parsed_cfg)
 				syslog(LOG_CRIT, "cassandra: Missing id for profile");
 				return false;
 			}
+			if (parsed_cfg->profiles.find(id) != parsed_cfg->profiles.end())
+			{
+				syslog(LOG_CRIT, "cassandra: Duplicate profile id %s", id);
+				return false;
+			}
 
 			std::string contact_points;
 			auto hosts = HalonMTA_config_object_get(profile, "hosts");
@@ -151,6 +156,11 @@ bool parse_config(HalonConfig* cfg, ParsedConfig* parsed_cfg)
 
 			const char* username = HalonMTA_config_string_get(HalonMTA_config_object_get(profile, "username"), nullptr);
 			const char* password = HalonMTA_config_string_get(HalonMTA_config_object_get(profile, "password"), nullptr);
+			if ((username && !password) || (!username && password))
+			{
+				syslog(LOG_CRIT, "cassandra: Both username and password must be set for profile %s", id);
+				return false;
+			}
 			if (username && password)
 				cass_cluster_set_credentials(cluster, username, password);
 
@@ -172,6 +182,11 @@ bool parse_config(HalonConfig* cfg, ParsedConfig* parsed_cfg)
 		}
 
 		parsed_cfg->profiles[parsed_cfg->default_profile] = cassandra_profile;
+	}
+	if (default_profile && parsed_cfg->profiles.find(default_profile) == parsed_cfg->profiles.end())
+	{
+		syslog(LOG_CRIT, "cassandra: Invalid default_profile %s", default_profile);
+		return false;
 	}
 
 	return true;
