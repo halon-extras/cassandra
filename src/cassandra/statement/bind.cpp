@@ -3,7 +3,6 @@
 #include "argument.hpp"
 #include "cassandra/cassandra.hpp"
 #include <cassandra.h>
-#include <string.h>
 
 void Cassandra_statement_bind_bool(HalonHSLContext* hhc, HalonHSLArguments* args, HalonHSLValue* ret)
 {
@@ -32,9 +31,8 @@ void Cassandra_statement_bind_bytes(HalonHSLContext* hhc, HalonHSLArguments* arg
 	std::string value;
 	if (!parse_hsl_argument_as_string(hhc, args, 1, true, value))
 		return;
-	const char* bytes = value.c_str();
 	Cassandra* ptr = (Cassandra*)HalonMTA_hsl_object_ptr_get(hhc);
-	CassError error = cass_statement_bind_bytes(ptr->statement, (size_t)index, (uint8_t*)bytes, strlen(bytes));
+	CassError error = cass_statement_bind_bytes(ptr->statement, (size_t)index, (const cass_byte_t*)value.data(), value.size());
 	if (error != CASS_OK)
 	{
 		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
@@ -188,9 +186,8 @@ void Cassandra_statement_bind_decimal(HalonHSLContext* hhc, HalonHSLArguments* a
 	double scale = 0;
 	if (!parse_hsl_argument_as_double(hhc, args, 2, true, scale))
 		return;
-	const char* bytes = varint.c_str();
 	Cassandra* ptr = (Cassandra*)HalonMTA_hsl_object_ptr_get(hhc);
-	CassError error = cass_statement_bind_decimal(ptr->statement, (size_t)index, (uint8_t*)bytes, strlen(bytes), (cass_int32_t)scale);
+	CassError error = cass_statement_bind_decimal(ptr->statement, (size_t)index, (const cass_byte_t*)varint.data(), varint.size(), (cass_int32_t)scale);
 	if (error != CASS_OK)
 	{
 		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
@@ -211,7 +208,7 @@ void Cassandra_statement_bind_inet(HalonHSLContext* hhc, HalonHSLArguments* args
 
 	CassError error;
 	CassInet inet;
-	error = cass_inet_from_string(value.c_str(), &inet);
+	error = cass_inet_from_string_n(value.data(), value.size(), &inet);
 	if (error != CASS_OK)
 	{
 		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
@@ -254,7 +251,7 @@ void Cassandra_statement_bind_string(HalonHSLContext* hhc, HalonHSLArguments* ar
 	if (!parse_hsl_argument_as_string(hhc, args, 1, true, value))
 		return;
 	Cassandra* ptr = (Cassandra*)HalonMTA_hsl_object_ptr_get(hhc);
-	CassError error = cass_statement_bind_string(ptr->statement, (size_t)index, value.c_str());
+	CassError error = cass_statement_bind_string_n(ptr->statement, (size_t)index, value.data(), value.size());
 	if (error != CASS_OK)
 	{
 		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);
@@ -274,7 +271,7 @@ void Cassandra_statement_bind_uuid(HalonHSLContext* hhc, HalonHSLArguments* args
 		return;
 	CassError error;
 	CassUuid value;
-	error = cass_uuid_from_string(_value.c_str(), &value);
+	error = cass_uuid_from_string_n(_value.data(), _value.size(), &value);
 	if (error != CASS_OK)
 	{
 		HalonHSLValue* e = HalonMTA_hsl_throw(hhc);

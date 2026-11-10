@@ -14,7 +14,7 @@ void Cassandra_statement(HalonHSLContext* hhc, HalonHSLArguments* args, HalonHSL
 	if (!parse_hsl_argument_as_double(hhc, args, 1, false, parameter_count))
 		return;
 
-	CassStatement* statement = cass_statement_new(query.c_str(), (size_t)parameter_count);
+	CassStatement* statement = cass_statement_new_n(query.data(), query.size(), (size_t)parameter_count);
 
 	Cassandra* ptr1 = (Cassandra*)HalonMTA_hsl_object_ptr_get(hhc);
 	Cassandra* ptr2 = new Cassandra();

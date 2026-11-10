@@ -53,6 +53,7 @@ bool parse_hsl_argument_as_double(HalonHSLContext* hhc, HalonHSLArguments* args,
 bool parse_hsl_argument_as_string(HalonHSLContext* hhc, HalonHSLArguments* args, size_t index, bool required, std::string& value)
 {
 	const char* _value;
+	size_t _value_length;
 	HalonHSLValue* arg = HalonMTA_hsl_argument_get(args, index);
 	if (arg)
 	{
@@ -62,8 +63,8 @@ bool parse_hsl_argument_as_string(HalonHSLContext* hhc, HalonHSLArguments* args,
 			HalonMTA_hsl_value_set(e, HALONMTA_HSL_TYPE_EXCEPTION, "argument is not a string", 0);
 			return false;
 		}
-		HalonMTA_hsl_value_get(arg, HALONMTA_HSL_TYPE_STRING, &_value, nullptr);
-		value = _value;
+		HalonMTA_hsl_value_get(arg, HALONMTA_HSL_TYPE_STRING, &_value, &_value_length);
+		value.assign(_value, _value_length);
 	}
 	else
 	{
