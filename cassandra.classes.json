@@ -71,7 +71,7 @@
                     "required": [
                         {
                             "name": "paging_size",
-                            "type": "string"
+                            "type": "number"
                         }
                     ],
                     "optional": []
@@ -309,7 +309,7 @@
                         },
                         {
                             "name": "scale",
-                            "type": "string"
+                            "type": "number"
                         }
                     ],
                     "optional": []

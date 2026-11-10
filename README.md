@@ -82,35 +82,37 @@ Check if there are more pages. On error an exception is thrown.
 
 Execute a query statement. On error an exception is thrown. See the table below for the data types mapping.
 
-| Cassandra   | HSL       | Comment                                              |
-|-------------|-----------|------------------------------------------------------|
-| `ascii`     | `string`  |                                                      |
-| `text`      | `string`  |                                                      |
-| `varchar`   | `string`  |                                                      |
-| `bigint`    | `string`  |                                                      |
-| `counter`   | `string`  |                                                      |
-| `int`       | `number`  |                                                      |
-| `smallint`  | `number`  |                                                      |
-| `tinyint`   | `number`  |                                                      |
-| `float`     | `number`  |                                                      |
-| `double`    | `number`  |                                                      |
-| `inet`      | `string`  |                                                      |
-| `uuid`      | `string`  |                                                      |
-| `timeuuid`  | `string`  |                                                      |
-| `boolean`   | `boolean` |                                                      |
-| `timestamp` | `string`  |                                                      |
-| `date`      | `number`  |                                                      |
-| `time`      | `string`  |                                                      |
-| `duration`  | `array`   | months (`number`), days (`number`), nanos (`string`) |
-| `blob`      | `string`  |                                                      |
-| `varint`    | `string`  |                                                      |
-| `decimal`   | `array`   | varint (`string`), scale (`number`)                  |
-| `map`       | `array`   |                                                      |
-| `list`      | `array`   |                                                      |
-| `set`       | `array`   |                                                      |
-| `tuple`     | `array`   |                                                      |
-| `custom`    | `none`    | **Not supported**                                    |
-| `udt`       | `none`    | **Not supported**                                    |
+| Cassandra   | HSL       | Comment                                                                                       |
+|-------------|-----------|-----------------------------------------------------------------------------------------------|
+| `ascii`     | `string`  |                                                                                               |
+| `text`      | `string`  |                                                                                               |
+| `varchar`   | `string`  |                                                                                               |
+| `bigint`    | `string`  | Decimal integer, e.g. `"-42"`                                                                 |
+| `counter`   | `string`  | Decimal integer, e.g. `"-42"`                                                                 |
+| `int`       | `number`  |                                                                                               |
+| `smallint`  | `number`  |                                                                                               |
+| `tinyint`   | `number`  |                                                                                               |
+| `float`     | `number`  |                                                                                               |
+| `double`    | `number`  |                                                                                               |
+| `inet`      | `string`  | e.g. `"10.1.2.3"` or `"::1"`                                                                  |
+| `uuid`      | `string`  | e.g. `"11111111-2222-3333-4444-555555555555"`                                                 |
+| `timeuuid`  | `string`  | Same format as `uuid`                                                                         |
+| `boolean`   | `boolean` |                                                                                               |
+| `timestamp` | `string`  | Milliseconds since 1970-01-01 UTC, e.g. `"1577836800000"`                                     |
+| `date`      | `number`  | Days since 1970-01-01 plus 2147483648 (2^31), e.g. `2147501910` is 2020-01-01                 |
+| `time`      | `string`  | Nanoseconds since midnight, e.g. `"45296789000000"` is 12:34:56.789                           |
+| `duration`  | `array`   | months (`number`), days (`number`), nanos (`string`)                                          |
+| `blob`      | `string`  | Raw bytes                                                                                     |
+| `varint`    | `string`  | Raw bytes, big-endian two's complement                                                        |
+| `decimal`   | `array`   | varint (`string`, same format as `varint`), scale (`number`); the value is varint × 10^-scale |
+| `map`       | `array`   | Keyed by the map keys                                                                         |
+| `list`      | `array`   | Numeric keys from 0                                                                           |
+| `set`       | `array`   | Numeric keys from 0                                                                           |
+| `tuple`     | `array`   | Numeric keys from 0                                                                           |
+| `custom`    | `none`    | **Not supported**                                                                             |
+| `udt`       | `none`    | **Not supported**                                                                             |
+
+NULL values are returned as `none`. Cassandra stores an empty (non-frozen) `list`, `set` or `map` as NULL, so those are returned as `none` too.
 
 #### bind_bool(number $index, boolean $value): this
 
