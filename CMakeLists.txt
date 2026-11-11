@@ -49,11 +49,26 @@ ADD_LIBRARY(cassandra SHARED
 	src/cassandra/batch/execute.cpp
 )
 
-FIND_LIBRARY(CASSANDRA cassandra)
+# The cpp-driver is linked statically and its symbols are hidden, so the package doesn't ship
+# libcassandra and can't clash with another copy loaded in the same process
+FIND_LIBRARY(CASSANDRA_STATIC cassandra_static REQUIRED)
+FIND_LIBRARY(LIBUV uv REQUIRED)
+FIND_PACKAGE(OpenSSL REQUIRED)
+FIND_PACKAGE(ZLIB REQUIRED)
+FIND_PACKAGE(Threads REQUIRED)
 
 TARGET_LINK_LIBRARIES(cassandra
-	${CASSANDRA}
+	${CASSANDRA_STATIC}
+	${LIBUV}
+	OpenSSL::SSL
+	OpenSSL::Crypto
+	ZLIB::ZLIB
+	Threads::Threads
 )
+TARGET_LINK_OPTIONS(cassandra PRIVATE "LINKER:--exclude-libs,ALL")
+# The driver gives OpenSSL pointers to its own functions (CRYPTO_set_mem_functions), which OpenSSL
+# calls during its exit cleanup, so the plugin must stay mapped until the process exits
+TARGET_LINK_OPTIONS(cassandra PRIVATE "LINKER:-z,nodelete")
 
 SET_TARGET_PROPERTIES(cassandra PROPERTIES PREFIX "")
 
@@ -83,7 +98,49 @@ INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link" DESTINATION plugin
 INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/cassandra.so.link" DESTINATION plugins/autoload/hsh RENAME cassandra.so)
 
 INSTALL(FILES "LICENSE" DESTINATION share/doc/plugins/cassandra)
-INSTALL(FILES "/cpp-driver/LICENSE" DESTINATION share/doc/plugins/cassandra RENAME LICENSE.cpp-driver)
+
+# Licenses for the cpp-driver and the third-party code compiled into it, copied from the cpp-driver
+# source the Dockerfiles leave in /tmp/halon. sbom.json lists the same components, update both
+# together with the cpp-driver version
+SET(CPP_DRIVER_SOURCE_DIR "/tmp/halon/cassandra-cpp-driver-2.17.1" CACHE PATH "cpp-driver source directory")
+
+FUNCTION(INSTALL_CPP_DRIVER_LICENSE NAME FILE)
+	IF (NOT EXISTS "${CPP_DRIVER_SOURCE_DIR}/${FILE}")
+		MESSAGE(FATAL_ERROR "Missing license for ${NAME}: ${CPP_DRIVER_SOURCE_DIR}/${FILE}")
+	ENDIF()
+	INSTALL(FILES "${CPP_DRIVER_SOURCE_DIR}/${FILE}" DESTINATION share/doc/plugins/cassandra RENAME "LICENSE.${NAME}")
+ENDFUNCTION()
+
+# For code whose license is only in a source file comment, copies the text from BEGIN up to and including END
+FUNCTION(INSTALL_CPP_DRIVER_LICENSE_FROM_SOURCE NAME FILE BEGIN END)
+	IF (NOT EXISTS "${CPP_DRIVER_SOURCE_DIR}/${FILE}")
+		MESSAGE(FATAL_ERROR "Missing license for ${NAME}: ${CPP_DRIVER_SOURCE_DIR}/${FILE}")
+	ENDIF()
+	FILE(READ "${CPP_DRIVER_SOURCE_DIR}/${FILE}" CONTENT)
+	STRING(FIND "${CONTENT}" "${BEGIN}" START)
+	IF (START EQUAL -1)
+		MESSAGE(FATAL_ERROR "License for ${NAME} not found in ${CPP_DRIVER_SOURCE_DIR}/${FILE}")
+	ENDIF()
+	STRING(SUBSTRING "${CONTENT}" ${START} -1 CONTENT)
+	STRING(FIND "${CONTENT}" "${END}" STOP)
+	IF (STOP EQUAL -1)
+		MESSAGE(FATAL_ERROR "End of license for ${NAME} not found in ${CPP_DRIVER_SOURCE_DIR}/${FILE}")
+	ENDIF()
+	STRING(LENGTH "${END}" END_LENGTH)
+	MATH(EXPR LENGTH "${STOP} + ${END_LENGTH}")
+	STRING(SUBSTRING "${CONTENT}" 0 ${LENGTH} CONTENT)
+	FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.${NAME}" "${CONTENT}\n")
+	INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/LICENSE.${NAME}" DESTINATION share/doc/plugins/cassandra)
+ENDFUNCTION()
+
+INSTALL_CPP_DRIVER_LICENSE(cpp-driver "LICENSE.txt")
+INSTALL_CPP_DRIVER_LICENSE(curl "src/third_party/curl/COPYING")
+INSTALL_CPP_DRIVER_LICENSE(hdr_histogram "src/third_party/hdr_histogram/LICENSE.txt")
+INSTALL_CPP_DRIVER_LICENSE(http-parser "src/third_party/http-parser/LICENSE-MIT")
+INSTALL_CPP_DRIVER_LICENSE(rapidjson "src/third_party/rapidjson/license.txt")
+INSTALL_CPP_DRIVER_LICENSE(sparsehash "src/third_party/sparsehash/COPYING")
+INSTALL_CPP_DRIVER_LICENSE_FROM_SOURCE(minizip "src/third_party/minizip/unzip.h" "unzip.h -- IO" "from any source distribution.")
+INSTALL_CPP_DRIVER_LICENSE_FROM_SOURCE(mt19937_64 "src/third_party/mt19937_64/mt19937_64.hpp" "Copyright (C) 2004, Makoto Matsumoto" "POSSIBILITY OF SUCH DAMAGE.")
 
 INSTALL(FILES "sbom.json" DESTINATION share/sbom/plugins RENAME ${PROJECT_NAME}.json)
 
@@ -92,16 +149,17 @@ SET(CPACK_PACKAGING_INSTALL_PREFIX "/opt/halon")
 
 IF (CPACK_GENERATOR MATCHES "DEB")
 	SET(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "${HALON_PACKAGE} (>= 5.10), libuv1, zlib1g")
+	# Library dependencies (libuv, OpenSSL, zlib) are added by shlibdeps
+	SET(CPACK_DEBIAN_PACKAGE_DEPENDS "${HALON_PACKAGE} (>= 5.10)")
 	SET(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/postinst;${CMAKE_CURRENT_SOURCE_DIR}/postrm")
-	INSTALL(FILES /usr/local/lib/${CMAKE_SYSTEM_PROCESSOR}-linux-gnu/libcassandra.so.2.17.1 DESTINATION /usr/local/lib/${CMAKE_SYSTEM_PROCESSOR}-linux-gnu RENAME libcassandra.so.2)
 ENDIF()
 IF (CPACK_GENERATOR MATCHES "RPM")
+	# Library dependencies (libuv, OpenSSL, zlib) are added by autoreqprov
 	SET(CPACK_RPM_PACKAGE_AUTOREQPROV ON)
-	SET(CPACK_RPM_PACKAGE_REQUIRES "${HALON_PACKAGE} >= 5.10, libuv, zlib")
+	SET(CPACK_RPM_PACKAGE_REQUIRES "${HALON_PACKAGE} >= 5.10")
+	SET(CPACK_RPM_PACKAGE_LICENSE "MIT AND Apache-2.0 AND BSD-3-Clause AND curl AND Zlib AND (CC0-1.0 OR BSD-2-Clause)")
 	SET(CPACK_RPM_POST_INSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/postinst")
 	SET(CPACK_RPM_POST_UNINSTALL_SCRIPT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/postrm")
-	INSTALL(FILES /usr/local/lib64/libcassandra.so.2.17.1 DESTINATION /usr/local/lib64 RENAME libcassandra.so.2)
 ENDIF()
 
 SET(CPACK_PACKAGE_NAME "halon-extras-cassandra")
@@ -109,6 +167,7 @@ SET(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Halon extras cassandra client")
 SET(CPACK_PACKAGE_DESCRIPTION "Halon extras cassandra client")
 SET(CPACK_PACKAGE_CONTACT "Halon support@halon.io")
+SET(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/halon-extras/cassandra")
 SET(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-${SYSTEM_NAME}")
 
 SET(CPACK_DEBIAN_PACKAGE_SECTION "mail")

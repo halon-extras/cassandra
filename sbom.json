@@ -14,7 +14,102 @@
                     }
                 }
             ],
-            "purl": "pkg:github/apache/cassandra-cpp-driver@2.17.1"
+            "purl": "pkg:github/apache/cassandra-cpp-driver@2.17.1",
+            "modified": false
+        },
+        {
+            "type": "library",
+            "name": "curl",
+            "description": "hostcheck only, bundled in cassandra-cpp-driver 2.17.1",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "curl"
+                    }
+                }
+            ],
+            "purl": "pkg:github/curl/curl"
+        },
+        {
+            "type": "library",
+            "name": "hdr_histogram",
+            "description": "Bundled in cassandra-cpp-driver 2.17.1",
+            "licenses": [
+                {
+                    "expression": "CC0-1.0 OR BSD-2-Clause"
+                }
+            ],
+            "purl": "pkg:github/HdrHistogram/HdrHistogram_c"
+        },
+        {
+            "type": "library",
+            "name": "http-parser",
+            "version": "2.9.2",
+            "description": "Bundled in cassandra-cpp-driver 2.17.1",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:github/nodejs/http-parser@v2.9.2"
+        },
+        {
+            "type": "library",
+            "name": "minizip",
+            "version": "1.1",
+            "description": "Bundled in cassandra-cpp-driver 2.17.1, from zlib commit cacf7f1d4e3d44d871b605da3b647f07d718623f with a C90 patch",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "Zlib"
+                    }
+                }
+            ],
+            "purl": "pkg:github/madler/zlib@cacf7f1d4e3d44d871b605da3b647f07d718623f#contrib/minizip",
+            "modified": true
+        },
+        {
+            "type": "library",
+            "name": "mt19937-64",
+            "description": "C++ version of the reference implementation, bundled in cassandra-cpp-driver 2.17.1",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "BSD-3-Clause"
+                    }
+                }
+            ],
+            "purl": "pkg:generic/mt19937-64?download_url=http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/VERSIONS/C-LANG/mt19937-64.c",
+            "modified": true
+        },
+        {
+            "type": "library",
+            "name": "rapidjson",
+            "version": "1.1.0",
+            "description": "Bundled in cassandra-cpp-driver 2.17.1",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "MIT"
+                    }
+                }
+            ],
+            "purl": "pkg:github/Tencent/rapidjson@67fac85e96220f69076121d569abd15471abb6bf"
+        },
+        {
+            "type": "library",
+            "name": "sparsehash",
+            "description": "Bundled in cassandra-cpp-driver 2.17.1",
+            "licenses": [
+                {
+                    "license": {
+                        "id": "BSD-3-Clause"
+                    }
+                }
+            ],
+            "purl": "pkg:github/sparsehash/sparsehash"
         }
     ]
 }
